@@ -2,6 +2,8 @@ import sqlite3
 
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
 from werkzeug.exceptions import abort
+post_count = 0 
+db_connection_count = 0 
 
 # Function to get a database connection.
 # This function connects to database with the name `database.db`
@@ -15,7 +17,10 @@ def get_post(post_id):
     connection = get_db_connection()
     post = connection.execute('SELECT * FROM posts WHERE id = ?',
                         (post_id,)).fetchone()
+    title = connection.execute('SELECT * FROM posts WHERE id = ?',
+                        (post_id,)).fetchone()
     connection.close()
+    app.logger.info('Article "'+ title  +'" Retrieved')
     return post
 
 # Define the Flask application
@@ -26,7 +31,9 @@ app.config['SECRET_KEY'] = 'your secret key'
 @app.route('/')
 def index():
     connection = get_db_connection()
+    #db_connection_count = db_connection_count + 1 
     posts = connection.execute('SELECT * FROM posts').fetchall()
+    #post_count == len(posts)
     connection.close()
     return render_template('index.html', posts=posts)
 
@@ -37,6 +44,7 @@ def post(post_id):
     post = get_post(post_id)
     if post is None:
       return render_template('404.html'), 404
+      app.logger.info('404 Error Status Returned')
     else:
       return render_template('post.html', post=post)
 
@@ -44,6 +52,7 @@ def post(post_id):
 @app.route('/about')
 def about():
     return render_template('about.html')
+    app.logger.info('About Us Page Retrieved Successfully')
 
 # Define the post creation functionality 
 @app.route('/create', methods=('GET', 'POST'))
@@ -57,13 +66,40 @@ def create():
         else:
             connection = get_db_connection()
             connection.execute('INSERT INTO posts (title, content) VALUES (?, ?)',
-                         (title, content))
+                         (title, content),
+                         app.logger.info('Article "'+ title  +'" Created'))
             connection.commit()
             connection.close()
 
             return redirect(url_for('index'))
 
     return render_template('create.html')
+
+# adding the /healthz endpoint
+
+@app.route('/healthz')
+def healthz():  #def healthcheck():
+    response = app.response_class(
+        response=json.dumps({"result":"OK - healthy"}),
+        status=200,
+        mimetype='application/json'
+
+    )
+    app.logger.info('Healthz endpoint request successful')
+
+    return response
+# adding the metrics endpoint
+@app.route('/metrics')
+def metrics():
+    response = app.response_class(
+        response=json.dumps({"status":"success","data":{"db_connection_count":db_connection_count,"post_count":post_count}}),
+        status=200,
+        mimetype='application/json'
+
+    )
+    app.logger.info('Metrics request successful')
+    return response
+
 
 # start the application on port 3111
 if __name__ == "__main__":

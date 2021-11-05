@@ -1,7 +1,7 @@
 # TechTrends Web Application
 
 This is a Flask application that lists the latest articles within the cloud-native ecosystem.
-
+continuous integration pipeline
 ## Run 
 
 To run this application there are 2 steps required:
